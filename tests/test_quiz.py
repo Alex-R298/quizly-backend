@@ -60,8 +60,8 @@ class QuizModelTestCase(APITestCase):
             owner=self.user,
             title="Test Quiz",
             description="Test",
-        video_url="https://www.youtube.com/watch?v=example",
-    )
+            video_url="https://www.youtube.com/watch?v=example",
+        )
         
     def test_quiz_creation(self):
         self.assertEqual(self.quiz.owner, self.user)
@@ -80,3 +80,82 @@ class QuizModelTestCase(APITestCase):
         self.assertEqual(question.question_title, "What is 2+2?")
         self.assertEqual(question.question_options, ["1", "2", "3", "4"])
         self.assertEqual(question.answer, "4")
+
+
+class GetQuizListTestCase(APITestCase): 
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpassword')
+        self.client.force_authenticate(user=self.user)
+        Quiz.objects.create(
+            owner=self.user,
+            title="Quiz 1",
+            description="Description 1",
+            video_url="https://www.youtube.com/watch?v=example1",
+        )
+        Quiz.objects.create(
+            owner=self.user,
+            title="Quiz 2",
+            description="Description 2",
+            video_url="https://www.youtube.com/watch?v=example2",
+        )
+
+    def test_get_quiz_list_success(self):
+        response = self.client.get('/api/quizzes/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data[0]['title'], "Quiz 1")
+        self.assertEqual(response.data[1]['title'], "Quiz 2")
+
+    def test_get_quiz_list_unauthenticated(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.get('/api/quizzes/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+
+class GetQuizDetailTestCase(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpassword')
+        self.client.force_authenticate(user=self.user)
+        self.quiz = Quiz.objects.create(
+            owner=self.user,
+            title="Test Quiz",
+            description="Test",
+            video_url="https://www.youtube.com/watch?v=example",
+        )
+        self.question = Question.objects.create(
+            quiz=self.quiz,
+            question_title="What is 2+2?",
+            question_options=["1", "2", "3", "4"],
+            answer="4",
+        )
+
+    def test_get_quiz_detail_success(self):
+        response = self.client.get(f'/api/quizzes/{self.quiz.id}/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['title'], "Test Quiz")
+        self.assertEqual(response.data['description'], "Test")
+        self.assertEqual(response.data['video_url'], "https://www.youtube.com/watch?v=example")
+        self.assertEqual(len(response.data['questions']), 1)
+        question_data = response.data['questions'][0]
+        self.assertEqual(question_data['question_title'], "What is 2+2?")
+        self.assertEqual(question_data['question_options'], ["1", "2", "3", "4"])
+        self.assertEqual(question_data['answer'], "4")
+
+    def test_get_quiz_detail_not_found(self):
+        response = self.client.get('/api/quizzes/999/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_get_quiz_detail_unauthenticated(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.get(f'/api/quizzes/{self.quiz.id}/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+
+class PatchQuizTestCase(APITestCase): 
+    pass
+
+
+class DeleteQuizTestCase(APITestCase):
+    pass
