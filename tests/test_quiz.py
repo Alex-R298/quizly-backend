@@ -111,6 +111,12 @@ class GetQuizListTestCase(APITestCase):
         response = self.client.get('/api/quizzes/')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_get_quiz_list_only_own_quizzes(self):
+        other_user = User.objects.create_user(username='other', password='pw')
+        Quiz.objects.create(owner=other_user, title="Other Quiz", video_url="https://www.youtube.com/watch?v=other")
+        response = self.client.get('/api/quizzes/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
 
 
 class GetQuizDetailTestCase(APITestCase):
@@ -151,11 +157,77 @@ class GetQuizDetailTestCase(APITestCase):
         response = self.client.get(f'/api/quizzes/{self.quiz.id}/')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_get_quiz_detail_wrong_user(self):
+        other_user = User.objects.create_user(username='other', password='pw')
+        self.client.force_authenticate(user=other_user)
+        response = self.client.get(f'/api/quizzes/{self.quiz.id}/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
-class PatchQuizTestCase(APITestCase): 
-    pass
+class PatchQuizTestCase(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpassword')
+        self.client.force_authenticate(user=self.user)
+        self.quiz = Quiz.objects.create(
+            owner=self.user,
+            title="Test Quiz",
+            description="Test",
+            video_url="https://www.youtube.com/watch?v=example",
+        )
+    def test_patch_quiz_success(self):
+        response = self.client.patch(f'/api/quizzes/{self.quiz.id}/', {
+            "title": "Updated Quiz Title",
+            "description": "Updated Description",
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.quiz.refresh_from_db()
+        self.assertEqual(self.quiz.title, "Updated Quiz Title")
+        self.assertEqual(self.quiz.description, "Updated Description")
+
+    def test_patch_quiz_not_found(self):
+        response = self.client.patch('/api/quizzes/999/', {"title": "x"}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_patch_quiz_wrong_user(self):
+        other_user = User.objects.create_user(username='other', password='pw')
+        self.client.force_authenticate(user=other_user)
+        response = self.client.patch(f'/api/quizzes/{self.quiz.id}/', {"title": "x"}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_patch_quiz_unauthenticated(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.patch(f'/api/quizzes/{self.quiz.id}/', {"title": "x"}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 class DeleteQuizTestCase(APITestCase):
-    pass
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpassword')
+        self.client.force_authenticate(user=self.user)
+        self.quiz = Quiz.objects.create(
+            owner=self.user,
+            title="Test Quiz",
+            description="Test",
+            video_url="https://www.youtube.com/watch?v=example",
+        )
+
+    def test_delete_quiz_success(self):
+        response = self.client.delete(f'/api/quizzes/{self.quiz.id}/')
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Quiz.objects.filter(id=self.quiz.id).exists())
+
+    def test_delete_quiz_not_found(self):
+        response = self.client.delete('/api/quizzes/999/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_quiz_wrong_user(self):
+        other_user = User.objects.create_user(username='other', password='pw')
+        self.client.force_authenticate(user=other_user)
+        response = self.client.delete(f'/api/quizzes/{self.quiz.id}/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(Quiz.objects.filter(id=self.quiz.id).exists())
+
+    def test_delete_quiz_unauthenticated(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.delete(f'/api/quizzes/{self.quiz.id}/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
