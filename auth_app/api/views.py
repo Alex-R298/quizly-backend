@@ -8,6 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .authentication import CookieJWTAuthentication
 from .serializers import LoginSerializer, RegistrationSerializer
+from .utils import build_login_response
 
 
 class RegisterView(APIView):
@@ -30,26 +31,13 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
         user = authenticate(
             username=serializer.validated_data['username'],
             password=serializer.validated_data['password'],
         )
         if user is None:
             return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
-
-        refresh = RefreshToken.for_user(user)
-        response = Response({
-            "detail": "Login successfully!",
-            "user": {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-            },
-        }, status=status.HTTP_200_OK)
-        response.set_cookie("access_token", str(refresh.access_token), httponly=True, samesite="Lax")
-        response.set_cookie("refresh_token", str(refresh), httponly=True, samesite="Lax")
-        return response
+        return build_login_response(user)
 
 
 class LogoutView(APIView):

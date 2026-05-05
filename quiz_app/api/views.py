@@ -5,14 +5,15 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-logger = logging.getLogger(__name__)
-
-from quiz_app.models import Quiz, Question
+from quiz_app.models import Quiz
 from quiz_app.services.quiz_generator import generate_quiz_from_url
 from quiz_app.services.youtube import normalize_url
 from .serializers import QuizSerializer
 from .permissions import IsOwner
+from .utils import save_quiz
 from auth_app.api.authentication import CookieJWTAuthentication
+
+logger = logging.getLogger(__name__)
 
 
 class QuizViewSet(viewsets.ModelViewSet):
@@ -32,13 +33,6 @@ class QuizViewSet(viewsets.ModelViewSet):
         self.check_object_permissions(self.request, obj)
         return obj
 
-    def _save_quiz(self, owner, quiz_data):
-        questions_data = quiz_data.pop('questions', [])
-        quiz = Quiz.objects.create(owner=owner, **quiz_data)
-        for question in questions_data:
-            Question.objects.create(quiz=quiz, **question)
-        return quiz
-
     def create(self, request, *args, **kwargs):
         url = request.data.get('url')
         if not url:
@@ -52,5 +46,5 @@ class QuizViewSet(viewsets.ModelViewSet):
         except Exception:
             logger.exception("Quiz generation failed")
             return Response({"detail": "Internal server error."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        quiz = self._save_quiz(request.user, quiz_data)
+        quiz = save_quiz(request.user, quiz_data)
         return Response(QuizSerializer(quiz).data, status=status.HTTP_201_CREATED)

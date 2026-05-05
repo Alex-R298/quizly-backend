@@ -52,16 +52,19 @@ def _parse_response_text(text: str) -> dict:
     return json.loads(text)
 
 
-def generate_questions(transcript: str) -> dict:
-    prompt = PROMPT_TEMPLATE.format(transcript=transcript)
+def _attempt_generate(prompt: str) -> dict:
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
+    return _parse_response_text(response.text)
+
+
+def _call_with_retry(prompt: str) -> dict:
     last_exc = None
     for attempt in range(MAX_RETRIES):
         try:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-            )
-            return _parse_response_text(response.text)
+            return _attempt_generate(prompt)
         except (genai_errors.ServerError, genai_errors.ClientError) as exc:
             if hasattr(exc, 'status_code') and exc.status_code not in (429, 503):
                 raise
@@ -71,3 +74,8 @@ def generate_questions(transcript: str) -> dict:
         if attempt < MAX_RETRIES - 1:
             time.sleep(RETRY_BACKOFF_SECONDS * (2 ** attempt))
     raise last_exc
+
+
+def generate_questions(transcript: str) -> dict:
+    prompt = PROMPT_TEMPLATE.format(transcript=transcript)
+    return _call_with_retry(prompt)
