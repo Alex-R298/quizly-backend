@@ -1,10 +1,16 @@
 import json
+import os
+import time
 
 from dotenv import load_dotenv
 from google import genai
+from google.genai import errors as genai_errors
 
-load_dotenv()
-client = genai.Client()
+load_dotenv(override=True)
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+
+MAX_RETRIES = 4
+RETRY_BACKOFF_SECONDS = 2
 
 
 PROMPT_TEMPLATE = """Based on the following transcript, generate a quiz in valid JSON format.
@@ -36,16 +42,32 @@ Transcript:
 """
 
 
-def generate_questions(transcript: str) -> dict:
-    prompt = PROMPT_TEMPLATE.format(transcript=transcript)
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-    )
-    text = response.text.strip()
+def _parse_response_text(text: str) -> dict:
+    text = text.strip()
     if text.startswith("```"):
         text = text.split("```", 2)[1]
         if text.startswith("json"):
             text = text[4:]
         text = text.strip()
     return json.loads(text)
+
+
+def generate_questions(transcript: str) -> dict:
+    prompt = PROMPT_TEMPLATE.format(transcript=transcript)
+    last_exc = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+            )
+            return _parse_response_text(response.text)
+        except (genai_errors.ServerError, genai_errors.ClientError) as exc:
+            if hasattr(exc, 'status_code') and exc.status_code not in (429, 503):
+                raise
+            last_exc = exc
+        except json.JSONDecodeError as exc:
+            last_exc = exc
+        if attempt < MAX_RETRIES - 1:
+            time.sleep(RETRY_BACKOFF_SECONDS * (2 ** attempt))
+    raise last_exc

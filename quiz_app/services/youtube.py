@@ -1,8 +1,28 @@
 import tempfile
 import uuid
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs
 
 import yt_dlp
+
+
+def extract_video_id(url: str) -> str:
+    parsed = urlparse(url)
+    if parsed.hostname in ('youtu.be',):
+        return parsed.path.lstrip('/')
+    if parsed.hostname in ('www.youtube.com', 'youtube.com'):
+        if parsed.path == '/watch':
+            return parse_qs(parsed.query).get('v', [None])[0]
+        if parsed.path.startswith('/shorts/'):
+            return parsed.path.split('/shorts/')[1]
+    return None
+
+
+def normalize_url(url: str) -> str:
+    video_id = extract_video_id(url)
+    if not video_id:
+        raise ValueError(f"Could not extract video ID from URL: {url}")
+    return f"https://www.youtube.com/watch?v={video_id}"
 
 
 def download_audio(url: str) -> Path:
@@ -20,11 +40,3 @@ def download_audio(url: str) -> Path:
         info = ydl.extract_info(url, download=True)
         return Path(ydl.prepare_filename(info))
 
-
-def fetch_metadata(url: str) -> dict:
-    with yt_dlp.YoutubeDL({"quiet": True, "noplaylist": True}) as ydl:
-        info = ydl.extract_info(url, download=False)
-        return {
-            "title": info.get("title", ""),
-            "description": info.get("description", ""),
-        }
