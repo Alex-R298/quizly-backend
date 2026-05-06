@@ -12,10 +12,13 @@ from .utils import build_login_response
 
 
 class RegisterView(APIView):
+    """Handles user registration."""
+
     authentication_classes = []
     permission_classes = []
 
     def post(self, request):
+        """Create a new user account."""
         serializer = RegistrationSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -24,10 +27,13 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
+    """Handles user login and issues JWT cookies."""
+
     authentication_classes = []
     permission_classes = []
 
     def post(self, request):
+        """Authenticate user and return access and refresh tokens as cookies."""
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -41,10 +47,13 @@ class LoginView(APIView):
 
 
 class LogoutView(APIView):
+    """Handles user logout by blacklisting the refresh token and clearing cookies."""
+
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        """Blacklist the refresh token and delete auth cookies."""
         refresh_token = request.COOKIES.get("refresh_token")
         if refresh_token:
             try:
@@ -62,10 +71,13 @@ class LogoutView(APIView):
 
 
 class TokenRefreshView(APIView):
+    """Issues a new access token from a valid refresh token cookie."""
+
     authentication_classes = []
     permission_classes = []
 
     def post(self, request):
+        """Read the refresh token cookie and return a fresh access token cookie."""
         refresh_token = request.COOKIES.get("refresh_token")
         if not refresh_token:
             return Response({"detail": "Refresh token missing."}, status=status.HTTP_401_UNAUTHORIZED)

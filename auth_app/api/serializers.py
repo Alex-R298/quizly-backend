@@ -5,6 +5,8 @@ from rest_framework import serializers
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
+    """Validates and creates a new user account."""
+
     email = serializers.EmailField(required=True)
     confirmed_password = serializers.CharField(write_only=True)
 
@@ -14,6 +16,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True}}
 
     def validate(self, attrs):
+        """Check password confirmation and email uniqueness."""
         if attrs['password'] != attrs['confirmed_password']:
             raise serializers.ValidationError({'confirmed_password': 'Passwords do not match.'})
         validate_password(attrs['password'])
@@ -22,6 +25,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        """Persist the new user to the database."""
         validated_data.pop('confirmed_password')
         return User.objects.create_user(
             username=validated_data['username'],
