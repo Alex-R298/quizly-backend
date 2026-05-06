@@ -7,6 +7,7 @@ import yt_dlp
 
 
 def extract_video_id(url: str) -> str:
+    """Extract the YouTube video ID from a standard or short URL."""
     parsed = urlparse(url)
     if parsed.hostname in ('youtu.be',):
         return parsed.path.lstrip('/')
@@ -19,6 +20,7 @@ def extract_video_id(url: str) -> str:
 
 
 def normalize_url(url: str) -> str:
+    """Convert any supported YouTube URL to the canonical watch URL format."""
     video_id = extract_video_id(url)
     if not video_id:
         raise ValueError(f"Could not extract video ID from URL: {url}")
@@ -26,6 +28,7 @@ def normalize_url(url: str) -> str:
 
 
 def download_audio(url: str) -> Path:
+    """Download the best available audio track from a YouTube URL to a temp file."""
     tmp_dir = Path(tempfile.gettempdir())
     tmp_filename = str(tmp_dir / f"quizly_{uuid.uuid4().hex}.%(ext)s")
 

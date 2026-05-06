@@ -3,12 +3,16 @@ from quiz_app.models import Quiz, Question
 
 
 class QuestionSerializer(serializers.ModelSerializer):
+    """Serializes a single quiz question."""
+
     class Meta:
         model = Question
         fields = ['id', 'question_title', 'question_options', 'answer', 'created_at', 'updated_at']
 
 
 class QuizSerializer(serializers.ModelSerializer):
+    """Serializes a quiz including all nested questions."""
+
     questions = QuestionSerializer(many=True, read_only=True)
 
     class Meta:

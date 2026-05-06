@@ -17,15 +17,19 @@ logger = logging.getLogger(__name__)
 
 
 class QuizViewSet(viewsets.ModelViewSet):
+    """ViewSet for creating, retrieving, updating and deleting quizzes."""
+
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated, IsOwner]
     serializer_class = QuizSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
 
     def get_queryset(self):
+        """Return only quizzes owned by the current user."""
         return Quiz.objects.filter(owner=self.request.user)
 
     def get_object(self):
+        """Retrieve a quiz by pk, validating that pk is a valid integer."""
         pk = self.kwargs['pk']
         if not str(pk).lstrip('-').isdigit():
             raise ValidationError({"detail": f"Invalid quiz ID: '{pk}'."})
@@ -34,6 +38,7 @@ class QuizViewSet(viewsets.ModelViewSet):
         return obj
 
     def create(self, request, *args, **kwargs):
+        """Generate a quiz from a YouTube URL and persist it."""
         url = request.data.get('url')
         if not url:
             return Response({"detail": "URL is required."}, status=status.HTTP_400_BAD_REQUEST)

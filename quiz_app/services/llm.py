@@ -43,6 +43,7 @@ Transcript:
 
 
 def _parse_response_text(text: str) -> dict:
+    """Strip markdown code fences from the response and parse it as JSON."""
     text = text.strip()
     if text.startswith("```"):
         text = text.split("```", 2)[1]
@@ -53,6 +54,7 @@ def _parse_response_text(text: str) -> dict:
 
 
 def _attempt_generate(prompt: str) -> dict:
+    """Send a single request to the Gemini API and return the parsed result."""
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt,
@@ -61,6 +63,7 @@ def _attempt_generate(prompt: str) -> dict:
 
 
 def _call_with_retry(prompt: str) -> dict:
+    """Retry the Gemini API call on 429/503 or invalid JSON, with exponential backoff."""
     last_exc = None
     for attempt in range(MAX_RETRIES):
         try:
@@ -77,5 +80,6 @@ def _call_with_retry(prompt: str) -> dict:
 
 
 def generate_questions(transcript: str) -> dict:
+    """Build the prompt from the transcript and return a quiz dict from Gemini."""
     prompt = PROMPT_TEMPLATE.format(transcript=transcript)
     return _call_with_retry(prompt)
