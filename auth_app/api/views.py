@@ -8,7 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .authentication import CookieJWTAuthentication
 from .serializers import LoginSerializer, RegistrationSerializer
-from .utils import build_login_response
+from .utils import build_login_response, set_access_cookie
 
 
 class RegisterView(APIView):
@@ -89,7 +89,7 @@ class TokenRefreshView(APIView):
             return Response({"detail": "Invalid or expired refresh token."}, status=status.HTTP_401_UNAUTHORIZED)
 
         response = Response({"detail": "Token refreshed"}, status=status.HTTP_200_OK)
-        response.set_cookie("access_token", access_token, httponly=True, samesite="Lax")
+        set_access_cookie(response, access_token)
         return response
 
 
